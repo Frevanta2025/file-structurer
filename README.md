@@ -42,3 +42,18 @@ Because file organization is:
 This tool makes it fast and deterministic.
 
 ## 📁 Example output
+vacation_paris/
+_TOC.md
+img__001__20260412.jpg
+ticket__002__20260412.pdf
+
+
+## 🛠 Tech
+
+- Pure HTML / CSS / JavaScript
+- JSZip (client-side ZIP generation)
+- No backend
+
+## 📜 License
+
+MIT
