@@ -10,8 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bucket: '',
         group: '',
         memo: '',
-        hintMode: 'auto',
-        customHint: '',
+        batchTag: '',
         dateMode: 'today',
         customDate: '',
         history: []
@@ -30,9 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
         groupInput: document.getElementById('group-input'),
         groupHistory: document.getElementById('group-history'),
         memoInput: document.getElementById('memo-input'),
+        batchTagInput: document.getElementById('batch-tag-input'),
         hintRadios: document.getElementsByName('hint-mode'),
-        customHintGroup: document.getElementById('custom-hint-group'),
-        customHintInput: document.getElementById('custom-hint-input'),
         
         dateRadios: document.getElementsByName('date-mode'),
         customDateGroup: document.getElementById('custom-date-group'),
@@ -85,8 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
             state.memo = e.target.value;
             updateUI();
         });
-        el.customHintInput.addEventListener('input', (e) => {
-            state.customHint = e.target.value;
+        el.batchTagInput.addEventListener('input', (e) => {
+            state.batchTag = e.target.value;
+            saveSettings();
             updateUI();
         });
 
@@ -94,11 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
         el.hintRadios.forEach(radio => {
             radio.addEventListener('change', (e) => {
                 state.hintMode = e.target.value;
-                if (state.hintMode === 'custom') {
-                    el.customHintGroup.classList.remove('hidden');
-                } else {
-                    el.customHintGroup.classList.add('hidden');
-                }
                 saveSettings();
                 updateUI();
             });
@@ -179,10 +173,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         state.files.forEach((fileObj, index) => {
             const seq = (index + 1).toString().padStart(3, '0');
-            const hint = extractHint(fileObj.originalName, state.hintMode, state.customHint);
+            const hint = extractHint(fileObj.originalName, state.hintMode);
             const ext = getExtension(fileObj.originalName).toLowerCase();
             const dateStr = formatDateYYYYMMDD(getDateForFile(fileObj.file, state));
-            const newName = `${hint}__${seq}__${dateStr}.${ext}`;
+            
+            const sanitizedBatch = sanitizeBatchTag(state.batchTag);
+            const newName = sanitizedBatch 
+                ? `${sanitizedBatch}__${hint}__${seq}__${dateStr}.${ext}`
+                : `${hint}__${seq}__${dateStr}.${ext}`;
             
             fileObj.newName = newName; // Store for ZIP gen
 
@@ -205,11 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // === Sanitization & Extraction ===
 
-    function extractHint(filename, mode, customValue) {
-        if (mode === 'custom') {
-            return sanitizeToken(customValue) || 'file';
-        }
-
+    function extractHint(filename, mode) {
         const ext = getExtension(filename).toLowerCase();
 
         if (mode === 'extension') {
@@ -232,6 +226,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function sanitizeToken(str) {
         return str.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    }
+
+    function sanitizeBatchTag(str) {
+        if (!str) return '';
+        let s = str.toLowerCase();
+        s = s.replace(/[^a-z0-9]/g, '_');
+        s = s.replace(/_+/g, '_');
+        s = s.slice(0, 20);
+        s = s.replace(/^_+|_+$/g, '');
+        return s;
     }
 
     function sanitizeGroup(str) {
@@ -292,7 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         el.generateBtn.disabled = true;
-        el.generateBtn.textContent = 'Generating...';
+        el.generateBtn.textContent = 'Preparing archive...';
 
         try {
             const zip = new JSZip();
@@ -339,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Error generating archive: ' + err.message);
         } finally {
             el.generateBtn.disabled = false;
-            el.generateBtn.textContent = 'Generate structured archive';
+            el.generateBtn.textContent = 'Download structured files';
         }
     }
 
@@ -377,6 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function saveSettings() {
         const settings = {
             hintMode: state.hintMode,
+            batchTag: state.batchTag,
             dateMode: state.dateMode,
             customDate: state.customDate
         };
@@ -388,14 +393,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data) {
             const settings = JSON.parse(data);
             state.hintMode = settings.hintMode || 'auto';
+            state.batchTag = settings.batchTag || '';
             state.dateMode = settings.dateMode || 'today';
             state.customDate = settings.customDate || '';
 
             // Update UI components
+            el.batchTagInput.value = state.batchTag;
             el.hintRadios.forEach(r => {
                 if (r.value === state.hintMode) r.checked = true;
             });
-            if (state.hintMode === 'custom') el.customHintGroup.classList.remove('hidden');
 
             el.dateRadios.forEach(r => {
                 if (r.value === state.dateMode) r.checked = true;
